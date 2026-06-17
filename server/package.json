@@ -1,0 +1,30 @@
+{
+  "name": "crm-server",
+  "version": "1.0.0",
+  "description": "CRM Backend — Express + PostgreSQL + JWT",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "axios": "^1.18.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "crm-monorepo": "file:..",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.11.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
