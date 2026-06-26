@@ -7,7 +7,8 @@ export const getDashboardStats = async (_req, res) => {
     const { rows: dashboardData } = await pool.query(`
       SELECT
         COUNT(*) as total_leads,
-        COUNT(*) FILTER (WHERE DATE(created_at) = CURRENT_DATE) as new_today,
+        COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date) as new_today,
+        COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = ((NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 day')::date) as new_yesterday,
         COUNT(*) FILTER (WHERE created_at >= NOW()-INTERVAL '30 days') AS new_leads_30d,
         COUNT(*) FILTER (WHERE stage='closed_won') AS total_won,
         COUNT(*) FILTER (WHERE stage='closed_lost') AS total_lost,
@@ -40,7 +41,7 @@ export const getDashboardStats = async (_req, res) => {
          WHEN stage = 'new' THEN 1
          WHEN stage = 'contacted' THEN 2
          WHEN stage = 'qualified' THEN 3
-         WHEN stage = 'proposal_sent' THEN 4
+         WHEN stage = 'proposal' THEN 4
          WHEN stage = 'closed_won' THEN 5
          WHEN stage = 'closed_lost' THEN 6
          ELSE 7 END`
@@ -56,14 +57,14 @@ export const getDashboardStats = async (_req, res) => {
 
     // Return enhanced dashboard stats
     res.json({
-      totalLeads: parseInt(stats.total_leads, 10),
-      newToday: parseInt(stats.new_today, 10),
+      totalLeads:   parseInt(stats.total_leads,    10),
+      newToday:     parseInt(stats.new_today,      10),
+      newYesterday: parseInt(stats.new_yesterday,  10),
       bySource,
       byStage,
-      // Include legacy fields for backwards compatibility
       new_leads_30d: parseInt(stats.new_leads_30d, 10),
-      total_won: parseInt(stats.total_won, 10),
-      total_lost: parseInt(stats.total_lost, 10),
+      total_won:     parseInt(stats.total_won,     10),
+      total_lost:    parseInt(stats.total_lost,    10),
       total_revenue: parseFloat(stats.total_revenue) || 0,
       pipeline_value: parseFloat(stats.pipeline_value) || 0,
     });
@@ -96,7 +97,7 @@ export const getConversionReport = async (_req, res) => {
 export const getRevenueTimeline = async (_req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT DATE_TRUNC('month', updated_at) AS month,
+      SELECT DATE_TRUNC('month', updated_at AT TIME ZONE 'Asia/Kolkata') AS month,
         SUM(deal_value) AS revenue
       FROM leads WHERE stage='closed_won'
       GROUP BY month ORDER BY month

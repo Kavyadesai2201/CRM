@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import pool from "../db/pool.js";
+import { createNotification } from "../services/notificationService.js";
 
 /**
  * GET /api/leads/:leadId/notes
@@ -138,6 +139,15 @@ export const addNote = async (req, res) => {
     const authorName = authorRes.rows[0]?.name || "Unknown";
 
     console.log(`[notesController] Note added to lead ${leadId} by ${authorName}`);
+
+    // Get lead name for the notification message
+    const leadRes = await pool.query('SELECT name FROM leads WHERE id = $1', [leadId]);
+    const leadName = leadRes.rows[0]?.name ?? 'a lead';
+    createNotification({
+      type:    'note_added',
+      message: `Note added on ${leadName} by ${authorName}`,
+      leadId,
+    });
 
     res.status(201).json({
       ...note,

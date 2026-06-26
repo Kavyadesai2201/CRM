@@ -31,20 +31,36 @@ export function useEventStream() {
 
       if (event.type === 'message') {
         const msg = event.payload;
+        // Update live feed
         qc.setQueryData(['messages', 'recent'], (old) => {
           if (!old) return old;
-          // Skip if we already have this message (reconnect replay guard)
           if (old.messages?.some(m => m.id === msg.id)) return old;
           return {
             ...old,
             messages: [msg, ...(old.messages ?? [])].slice(0, MAX_FEED_SIZE),
           };
         });
+        // Update open conversation if this lead is selected
+        qc.setQueryData(['messages', 'conversation', msg.lead_id], (old) => {
+          if (!old) return old; // not cached means it's not open — skip
+          const arr = old.data ?? [];
+          if (arr.some(m => m.id === msg.id)) return old;
+          return { ...old, data: [...arr, msg] };
+        });
+        // Refresh inbox lead list previews
+        qc.invalidateQueries({ queryKey: ['inbox-leads'] });
       } else if (event.type === 'stage') {
-        // Invalidate both query shapes used across the app
         qc.invalidateQueries({ queryKey: ['leads-all'] });
         qc.invalidateQueries({ queryKey: ['leads'] });
         qc.invalidateQueries({ queryKey: ['pipeline-stages'] });
+        qc.invalidateQueries({ queryKey: ['inbox-leads'] });
+      } else if (event.type === 'notification') {
+        // Prepend new notification to cache — badge updates automatically
+        qc.setQueryData(['notifications'], (old) => {
+          const list = old ?? [];
+          if (list.some(n => n.id === event.payload.id)) return list;
+          return [event.payload, ...list].slice(0, 20);
+        });
       }
     };
 

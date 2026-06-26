@@ -19,8 +19,14 @@ export default function Leads() {
   const [search,       setSearch]       = useState("");
   const [stage,        setStage]        = useState("");
   const [isModalOpen,  setIsModalOpen]  = useState(false);
+  const [toast,        setToast]        = useState("");
   // Per-lead AI summary state: { [leadId]: { loading, result, error } }
   const [summaries,    setSummaries]    = useState({});
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["leads", search, stage],
@@ -170,10 +176,24 @@ export default function Leads() {
         </table>
       </div>
 
+      {/* Success toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5
+                        px-4 py-3 rounded-xl shadow-xl
+                        bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm
+                        animate-fade-up">
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          {toast}
+        </div>
+      )}
+
       {/* Add Lead modal */}
       <AddLeadModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={() => showToast("Lead created successfully!")}
       />
     </div>
   );

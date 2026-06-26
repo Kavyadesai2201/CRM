@@ -1,13 +1,14 @@
 ﻿// /client/src/pages/Login.jsx
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { authApi } from "../services/api.js";
 import { useAuthStore } from "../store/authStore.js";
 
 export default function Login() {
-  const navigate = useNavigate();
-  const setAuth = useAuthStore(s => s.setAuth);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const setAuth   = useAuthStore(s => s.setAuth);
+  const [form, setForm] = useState({ email: location.state?.email ?? "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,6 +32,11 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-white">TechCRM</h1>
           <p className="text-gray-400 text-sm mt-1">Sign in to your workspace</p>
         </div>
+        {location.state?.email && (
+          <div className="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">
+            Account created — sign in below.
+          </div>
+        )}
         {error && <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -53,6 +59,17 @@ export default function Login() {
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        {/* Cross-link to register */}
+        <p className="text-center text-sm text-gray-500">
+          Don&apos;t have an account?{" "}
+          <Link
+            to="/register"
+            className="text-brand-400 hover:text-brand-300 font-medium transition-colors"
+          >
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

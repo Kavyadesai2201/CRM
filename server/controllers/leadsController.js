@@ -1,15 +1,38 @@
 ﻿// /server/controllers/leadsController.js
 import pool from "../db/pool.js";
 
+const LEAD_ORDER = {
+  last_activity_at: "COALESCE(m.sent_at, l.created_at) DESC",
+};
+
 export const getAllLeads = async (req, res) => {
   try {
-    const { stage, source, search, page = 1, limit = 20 } = req.query;
-    let query = "SELECT * FROM leads WHERE 1=1";
+    const { stage, source, search, page = 1, limit = 20, orderBy } = req.query;
+    let where = "WHERE 1=1";
     const params = [];
-    if (stage)  { params.push(stage);  query += ` AND stage=$${params.length}`; }
-    if (source) { params.push(source); query += ` AND source=$${params.length}`; }
-    if (search) { params.push(`%${search}%`); query += ` AND (name ILIKE $${params.length} OR email ILIKE $${params.length})`; }
-    query += ` ORDER BY created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`;
+    if (stage)  { params.push(stage);  where += ` AND l.stage=$${params.length}`; }
+    if (source) { params.push(source); where += ` AND l.source=$${params.length}`; }
+    if (search) {
+      params.push(`%${search}%`);
+      where += ` AND (l.name ILIKE $${params.length} OR l.email ILIKE $${params.length} OR l.phone::text ILIKE $${params.length})`;
+    }
+    const orderClause = LEAD_ORDER[orderBy] ?? "l.created_at DESC";
+    const query = `
+      SELECT l.*,
+             m.content   AS last_message,
+             m.sent_at   AS last_message_at,
+             m.direction AS last_message_direction
+      FROM leads l
+      LEFT JOIN LATERAL (
+        SELECT content, sent_at, direction FROM messages
+        WHERE lead_id = l.id
+        ORDER BY sent_at DESC
+        LIMIT 1
+      ) m ON true
+      ${where}
+      ORDER BY ${orderClause}
+      LIMIT $${params.length+1} OFFSET $${params.length+2}
+    `;
     params.push(parseInt(limit), (parseInt(page)-1)*parseInt(limit));
     const { rows } = await pool.query(query, params);
     res.json({ data: rows, page: +page, limit: +limit });
@@ -31,9 +54,9 @@ export const createLead = async (req, res) => {
 
   if (!name || !String(name).trim())
     return res.status(400).json({ error: "Name is required" });
-  if (!email || !String(email).trim())
-    return res.status(400).json({ error: "Email is required" });
-  if (!EMAIL_RE.test(String(email).trim()))
+  if (!phone || !String(phone).trim())
+    return res.status(400).json({ error: "Phone number is required" });
+  if (email && !EMAIL_RE.test(String(email).trim()))
     return res.status(400).json({ error: "Invalid email address" });
   if (deal_value !== undefined && deal_value !== null && deal_value !== "" &&
       (isNaN(Number(deal_value)) || Number(deal_value) < 0))
@@ -47,7 +70,7 @@ export const createLead = async (req, res) => {
        RETURNING *`,
       [
         String(name).trim(),
-        String(email).trim(),
+        email ? String(email).trim() : null,
         phone   || null,
         company || null,
         stage   || "new",

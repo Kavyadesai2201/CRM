@@ -8,10 +8,10 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
+  ssl: { rejectUnauthorized: false },   // Supabase requires SSL in all environments
+  max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,       // 10s — Supabase pooler can be slow on cold start
 });
 
 pool.on('connect', () => {
@@ -19,8 +19,8 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected PostgreSQL error:', err);
-  process.exit(-1);
+  // Log but don't exit — transient network errors shouldn't kill the server
+  console.error('PostgreSQL pool error:', err.message);
 });
 
 export default pool;

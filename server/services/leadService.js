@@ -1,6 +1,7 @@
 // /server/services/leadService.js
 import pool from "../db/pool.js";
 import bus  from "../events.js";
+import { createNotification } from "./notificationService.js";
 
 /**
  * Upsert a lead based on phone or instagramId.
@@ -78,7 +79,7 @@ export async function upsertLead({ phone, instagramId, lastMessage, source, name
           },
         });
       }
-      return lead;
+      return { lead, isNew: false };
     }
 
     // ── 3. Insert new lead ────────────────────────────────────────────────────
@@ -98,6 +99,12 @@ export async function upsertLead({ phone, instagramId, lastMessage, source, name
     const lead = rows[0];
     console.log(`[leadService] Created lead ${lead.id} (${source})`);
 
+    createNotification({
+      type:    'new_lead',
+      message: `New lead: ${lead.name} (${source === 'whatsapp' ? '+' : ''}${phone ?? instagramId ?? 'unknown'})`,
+      leadId:  lead.id,
+    });
+
     if (lastMessage) {
       const { rows: msgRows } = await client.query(
         `INSERT INTO messages (lead_id, direction, channel, content, sent_at)
@@ -114,7 +121,7 @@ export async function upsertLead({ phone, instagramId, lastMessage, source, name
         },
       });
     }
-    return lead;
+    return { lead, isNew: true };
   } finally {
     client.release();
   }

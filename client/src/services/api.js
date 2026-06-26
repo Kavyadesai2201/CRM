@@ -52,7 +52,8 @@ export const analyticsApi = {
 };
 
 export const messagesApi = {
-  getRecent: (params) => http.get("/messages/recent", { params }),
+  getRecent:  (params)          => http.get("/messages/recent", { params }),
+  getByLead:  (leadId, params)  => http.get(`/leads/${leadId}/messages`, { params }),
 };
 
 export const whatsappApi = {
@@ -62,4 +63,9 @@ export const whatsappApi = {
 export const instagramApi = {
   replyToComment: ({ commentId, message, leadId }) =>
     http.post("/instagram/reply", { commentId, message, leadId }),
+};
+
+export const notificationsApi = {
+  getAll:      () => http.get('/notifications'),
+  markAllRead: () => http.patch('/notifications/read'),
 };

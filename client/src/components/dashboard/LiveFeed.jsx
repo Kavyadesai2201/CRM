@@ -32,7 +32,7 @@ export const LiveFeed = () => {
           💬 Live Feed
         </h3>
         <p className="text-xs text-gray-500 mt-1">
-          {messages.length} recent messages · refreshes every 15s
+          {messages.length} recent messages · live — updates in real time
         </p>
       </div>
 
@@ -66,6 +66,9 @@ export const LiveFeed = () => {
  * Individual message item with inline reply and AI suggest-reply.
  * message shape: { id, lead_id, lead_name, phone, instagram_id,
  *                  channel, direction, content, sent_at }
+ *
+ * Inbound  → left-aligned, slate bubble, avatar + lead name, Reply button
+ * Outbound → right-aligned, indigo bubble, "You" label, no Reply button
  */
 const LiveFeedMessageItem = ({ message, isExpanded, onToggleReply, onReplySuccess }) => {
   const [replyText,    setReplyText]    = useState("");
@@ -109,60 +112,82 @@ const LiveFeedMessageItem = ({ message, isExpanded, onToggleReply, onReplySucces
     );
   };
 
+  const isOutbound  = message.direction === "outbound";
   const sourceIcon  = message.channel === "whatsapp" ? "☎️" : "📷";
   const sourceColor = message.channel === "whatsapp" ? "text-green-400" : "text-pink-400";
-  const directionLabel = message.direction === "outbound"
-    ? <span className="text-xs text-gray-600 ml-1">(sent)</span>
-    : null;
-  const timeAgo = formatTimeAgo(message.sent_at);
+  const timeAgo     = formatTimeAgo(message.sent_at);
+  const preview     = message.content?.substring(0, 80) ?? "";
+  const showMore    = (message.content?.length ?? 0) > 80;
 
-  // Only allow replying to inbound messages
-  const canReply = message.direction === "inbound";
-
-  const preview  = message.content?.substring(0, 80) ?? "";
-  const showMore = (message.content?.length ?? 0) > 80;
+  const initials = (message.lead_name || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
-    <div
-      className={`border-l-4 pl-4 py-3 rounded
-        ${message.direction === "outbound"
-          ? "border-brand-500/30 bg-brand-500/5"
-          : "border-transparent"
-        }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-lg ${sourceColor}`}>{sourceIcon}</span>
-            <span className="text-sm font-medium text-gray-200 truncate">
-              {message.lead_name}
-            </span>
-            {directionLabel}
-            <span className="text-xs text-gray-500 flex-shrink-0">{timeAgo}</span>
-          </div>
-          <p className="text-sm text-gray-400 leading-relaxed break-words">
-            "{preview}{showMore ? "…" : ""}"
-          </p>
-        </div>
+    <div className={`flex flex-col gap-1 ${isOutbound ? "items-end" : "items-start"}`}>
 
-        {canReply && (
-          <button
-            onClick={onToggleReply}
-            className="flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded
-                       bg-white/10 hover:bg-white/20 text-gray-300 transition-colors"
-          >
-            Reply
-          </button>
+      {/* ── Row: avatar + bubble ── */}
+      <div className={`flex items-start gap-2.5 w-full ${isOutbound ? "flex-row-reverse" : ""}`}>
+
+        {/* Avatar (inbound only) */}
+        {!isOutbound && (
+          <div className="w-8 h-8 rounded-full bg-slate-700/80 border border-slate-600/40
+                          flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-[10px] font-bold text-gray-300 leading-none">{initials}</span>
+          </div>
         )}
+
+        {/* Bubble column */}
+        <div className={`flex flex-col max-w-[80%] ${isOutbound ? "items-end" : "items-start"}`}>
+
+          {/* Sender label */}
+          <div className={`flex items-center gap-1.5 mb-1 ${isOutbound ? "flex-row-reverse" : ""}`}>
+            <span className={`text-base leading-none ${sourceColor}`}>{sourceIcon}</span>
+            <span className="text-xs font-semibold text-gray-300">
+              {isOutbound ? "You" : (message.lead_name || "Unknown")}
+            </span>
+          </div>
+
+          {/* Bubble */}
+          <div className={`rounded-2xl px-4 py-2.5 ${
+            isOutbound
+              ? "bg-indigo-950/70 border border-indigo-500/20 rounded-tr-sm"
+              : "bg-slate-800/70 border border-slate-600/40 rounded-tl-sm"
+          }`}>
+            <p className="text-sm text-gray-200 leading-relaxed break-words">
+              {preview}{showMore ? "…" : ""}
+            </p>
+          </div>
+
+          {/* Footer: timestamp · sent label · reply button */}
+          <div className={`flex items-center gap-2 mt-1 ${isOutbound ? "flex-row-reverse" : ""}`}>
+            <span className="text-xs text-gray-500">{timeAgo}</span>
+            {isOutbound && (
+              <span className="text-xs text-gray-600">sent</span>
+            )}
+            {!isOutbound && (
+              <button
+                onClick={onToggleReply}
+                className="text-xs font-medium px-2 py-0.5 rounded
+                           bg-white/8 hover:bg-white/15 text-gray-400
+                           hover:text-gray-200 transition-colors"
+              >
+                Reply
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {isExpanded && (
-        <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
-          {/* AI error banner */}
+      {/* ── Inline reply panel (inbound only) ── */}
+      {isExpanded && !isOutbound && (
+        <div className="w-[80%] mt-1 pt-2 border-t border-white/5 space-y-2">
           {aiError && (
             <p className="text-xs text-red-400 px-1">{aiError}</p>
           )}
-
           <textarea
             value={replyText}
             onChange={(e) => { setReplyText(e.target.value); setAiError(""); }}
@@ -173,7 +198,6 @@ const LiveFeedMessageItem = ({ message, isExpanded, onToggleReply, onReplySucces
             rows={2}
           />
           <div className="flex items-center justify-between gap-2">
-            {/* Suggest reply button — left side */}
             <button
               onClick={handleSuggestReply}
               disabled={aiMutation.isPending}
@@ -183,8 +207,6 @@ const LiveFeedMessageItem = ({ message, isExpanded, onToggleReply, onReplySucces
             >
               {aiMutation.isPending ? "Drafting…" : "✦ Suggest reply"}
             </button>
-
-            {/* Send / cancel — right side */}
             <div className="flex gap-2">
               <button
                 onClick={() => { setReplyText(""); setAiError(""); onToggleReply(); }}

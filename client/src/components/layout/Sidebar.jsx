@@ -4,8 +4,9 @@ import { useAuthStore } from "../../store/authStore.js";
 
 const NAV = [
   { to: "/dashboard", icon: "📊", label: "Dashboard" },
-  { to: "/leads",     icon: "👥", label: "Leads" },
-  { to: "/pipeline",  icon: "🔀", label: "Pipeline" },
+  { to: "/inbox",     icon: "💬", label: "Inbox"     },
+  { to: "/leads",     icon: "👥", label: "Leads"     },
+  { to: "/pipeline",  icon: "🔀", label: "Pipeline"  },
   { to: "/analytics", icon: "📈", label: "Analytics" },
 ];
 

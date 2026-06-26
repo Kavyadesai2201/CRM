@@ -6,53 +6,39 @@ import { useCreateLead } from "../hooks/useLeads.js";
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const STAGES = [
-  { value: "new",          label: "New" },
-  { value: "contacted",    label: "Contacted" },
-  { value: "qualified",    label: "Qualified" },
-  { value: "proposal",     label: "Proposal" },
-  { value: "negotiation",  label: "Negotiation" },
-  { value: "closed_won",   label: "Closed Won" },
-  { value: "closed_lost",  label: "Closed Lost" },
+  { value: "new",         label: "New" },
+  { value: "contacted",   label: "Contacted" },
+  { value: "qualified",   label: "Qualified" },
+  { value: "proposal",    label: "Proposal" },
+  { value: "closed_won",  label: "Closed Won" },
 ];
 
 const SOURCES = [
-  { value: "web",       label: "Web" },
   { value: "whatsapp",  label: "WhatsApp" },
   { value: "instagram", label: "Instagram" },
-  { value: "email",     label: "Email" },
+  { value: "manual",    label: "Manual" },
   { value: "referral",  label: "Referral" },
-  { value: "cold_call", label: "Cold Call" },
   { value: "other",     label: "Other" },
 ];
 
 const EMPTY_FORM = {
-  name: "", email: "", phone: "", company: "",
-  source: "", stage: "new", deal_value: "",
+  name: "", phone: "", source: "manual", stage: "new", notes: "",
 };
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function validate(form) {
   const errors = {};
-  if (!form.name.trim())
-    errors.name = "Name is required";
-  if (!form.email.trim())
-    errors.email = "Email is required";
-  else if (!EMAIL_RE.test(form.email.trim()))
-    errors.email = "Enter a valid email address";
-  if (form.deal_value !== "" &&
-      (isNaN(Number(form.deal_value)) || Number(form.deal_value) < 0))
-    errors.deal_value = "Must be a non-negative number";
+  if (!form.name.trim())  errors.name  = "Name is required";
+  if (!form.phone.trim()) errors.phone = "Phone number is required";
   return errors;
 }
 
-// ─── Shared style helpers ──────────────────────────────────────────────────────
+// ─── Style helpers ─────────────────────────────────────────────────────────────
 
 const inputCls = (hasError) =>
   [
-    "w-full px-3 py-2 rounded-xl text-sm text-white placeholder-gray-600",
+    "w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-gray-600",
     "bg-white/5 border focus:outline-none transition",
     hasError
       ? "border-red-500/50 focus:border-red-500"
@@ -60,14 +46,14 @@ const inputCls = (hasError) =>
   ].join(" ");
 
 const selectCls =
-  "w-full px-3 py-2 rounded-xl text-sm text-gray-300 " +
+  "w-full px-3 py-2.5 rounded-xl text-sm text-gray-300 " +
   "bg-gray-900 border border-white/10 focus:outline-none focus:border-brand-500 transition";
 
 // ─── Field wrapper ─────────────────────────────────────────────────────────────
 
 function Field({ label, error, children }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-gray-400">{label}</label>
       {children}
       {error && <p className="text-xs text-red-400">{error}</p>}
@@ -77,14 +63,14 @@ function Field({ label, error, children }) {
 
 // ─── Modal ─────────────────────────────────────────────────────────────────────
 
-export default function AddLeadModal({ isOpen, onClose }) {
+export default function AddLeadModal({ isOpen, onClose, onSuccess }) {
   const [form,        setForm]        = useState(EMPTY_FORM);
   const [errors,      setErrors]      = useState({});
   const [serverError, setServerError] = useState("");
 
   const { mutate, isPending } = useCreateLead();
 
-  // Reset state every time the modal opens
+  // Reset every time the modal opens
   useEffect(() => {
     if (isOpen) {
       setForm(EMPTY_FORM);
@@ -101,7 +87,6 @@ export default function AddLeadModal({ isOpen, onClose }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
-  // Per-field change handler — clears that field's error on edit
   const set = (field) => (e) => {
     const value = e.target.value;
     setForm(prev => ({ ...prev, [field]: value }));
@@ -111,29 +96,23 @@ export default function AddLeadModal({ isOpen, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const errs = validate(form);
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      return;
-    }
+    if (Object.keys(errs).length) { setErrors(errs); return; }
     setServerError("");
 
-    const payload = {
-      name:    form.name.trim(),
-      email:   form.email.trim(),
-      stage:   form.stage || "new",
-      ...(form.phone.trim()  && { phone:      form.phone.trim() }),
-      ...(form.company.trim() && { company:   form.company.trim() }),
-      ...(form.source        && { source:     form.source }),
-      ...(form.deal_value !== "" && { deal_value: Number(form.deal_value) }),
-    };
-
-    mutate(payload, {
-      onSuccess: () => onClose(),
-      onError:   (err) =>
-        setServerError(
-          err?.response?.data?.error || "Failed to create lead. Please try again."
-        ),
-    });
+    mutate(
+      {
+        name:   form.name.trim(),
+        phone:  form.phone.trim(),
+        source: form.source || "manual",
+        stage:  form.stage  || "new",
+        ...(form.notes.trim() && { notes: form.notes.trim() }),
+      },
+      {
+        onSuccess: () => { onClose(); onSuccess?.(); },
+        onError:   (err) =>
+          setServerError(err?.response?.data?.error || "Failed to create lead. Please try again."),
+      }
+    );
   };
 
   if (!isOpen) return null;
@@ -146,10 +125,10 @@ export default function AddLeadModal({ isOpen, onClose }) {
         onClick={onClose}
       />
 
-      {/* Panel — sits above backdrop */}
+      {/* Panel */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="glass w-full max-w-lg rounded-2xl p-6 space-y-5 pointer-events-auto
+          className="glass w-full max-w-md rounded-2xl p-6 space-y-5 pointer-events-auto
                      shadow-2xl shadow-black/60"
           onClick={(e) => e.stopPropagation()}
         >
@@ -157,7 +136,7 @@ export default function AddLeadModal({ isOpen, onClose }) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">Add Lead</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Fill in the details to create a new lead</p>
+              <p className="text-xs text-gray-500 mt-0.5">Create a new lead manually</p>
             </div>
             <button
               onClick={onClose}
@@ -169,65 +148,42 @@ export default function AddLeadModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          {/* Server error banner */}
+          {/* Server error */}
           {serverError && (
-            <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30
-                            text-red-400 text-sm">
+            <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
               {serverError}
             </div>
           )}
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {/* Row: Name + Email */}
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Name *" error={errors.name}>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={set("name")}
-                  placeholder="Jane Doe"
-                  autoFocus
-                  className={inputCls(!!errors.name)}
-                />
-              </Field>
-              <Field label="Email *" error={errors.email}>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={set("email")}
-                  placeholder="jane@company.com"
-                  className={inputCls(!!errors.email)}
-                />
-              </Field>
-            </div>
 
-            {/* Row: Phone + Company */}
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Phone">
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={set("phone")}
-                  placeholder="+1 555 0100"
-                  className={inputCls(false)}
-                />
-              </Field>
-              <Field label="Company">
-                <input
-                  type="text"
-                  value={form.company}
-                  onChange={set("company")}
-                  placeholder="Acme Corp"
-                  className={inputCls(false)}
-                />
-              </Field>
-            </div>
+            {/* Name */}
+            <Field label="Name *" error={errors.name}>
+              <input
+                type="text"
+                value={form.name}
+                onChange={set("name")}
+                placeholder="Jane Doe"
+                autoFocus
+                className={inputCls(!!errors.name)}
+              />
+            </Field>
 
-            {/* Row: Source + Stage */}
+            {/* Phone */}
+            <Field label="Phone Number *" error={errors.phone}>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={set("phone")}
+                placeholder="+91 98765 43210"
+                className={inputCls(!!errors.phone)}
+              />
+            </Field>
+
+            {/* Source + Stage */}
             <div className="grid grid-cols-2 gap-4">
               <Field label="Source">
                 <select value={form.source} onChange={set("source")} className={selectCls}>
-                  <option value="">— Select —</option>
                   {SOURCES.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
@@ -242,20 +198,17 @@ export default function AddLeadModal({ isOpen, onClose }) {
               </Field>
             </div>
 
-            {/* Deal Value */}
-            <Field label="Deal Value ($)" error={errors.deal_value}>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={form.deal_value}
-                onChange={set("deal_value")}
-                placeholder="0"
-                className={inputCls(!!errors.deal_value)}
+            {/* Notes */}
+            <Field label="Notes">
+              <textarea
+                value={form.notes}
+                onChange={set("notes")}
+                placeholder="Any additional context about this lead…"
+                rows={3}
+                className={inputCls(false) + " resize-none"}
               />
             </Field>
 
-            {/* Divider */}
             <div className="border-t border-white/10" />
 
             {/* Actions */}

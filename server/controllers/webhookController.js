@@ -125,13 +125,46 @@ export const handleWhatsAppWebhook = async (req, res) => {
             `\n  text: "${messageText}"`
           );
 
-          await upsertLead({
+          const { lead, isNew } = await upsertLead({
             phone,
             name:        senderName,
             lastMessage: messageText,
             source:      'whatsapp',
             sentAt,
           });
+
+          // Send a one-time welcome reply to brand-new leads only
+          if (isNew) {
+            const autoReply = 'Thank you for contacting us! We\'ll get back to you shortly.';
+            try {
+              const { data: sendData } = await axios.post(
+                `${GRAPH_BASE}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+                {
+                  messaging_product: 'whatsapp',
+                  recipient_type:    'individual',
+                  to:                phone,
+                  type:              'text',
+                  text:              { preview_url: false, body: autoReply },
+                },
+                {
+                  headers: {
+                    Authorization:  `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+                    'Content-Type': 'application/json',
+                  },
+                }
+              );
+              console.log(`[WhatsApp] Auto-reply sent to ${phone} | wamid=${sendData.messages?.[0]?.id}`);
+
+              // Persist auto-reply as outbound message
+              await pool.query(
+                `INSERT INTO messages (lead_id, direction, channel, content, sent_at)
+                 VALUES ($1, 'outbound', 'whatsapp', $2, NOW())`,
+                [lead.id, autoReply]
+              );
+            } catch (replyErr) {
+              console.error('[WhatsApp] Auto-reply failed:', replyErr.response?.data ?? replyErr.message);
+            }
+          }
         }
       }
     }

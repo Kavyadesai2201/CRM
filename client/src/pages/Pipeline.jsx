@@ -238,22 +238,69 @@ function DraggableLeadCard({ lead }) {
 
 // ─── Visual card (shared by in-place and DragOverlay) ─────────────────────────
 
+const SOURCE_META = {
+  whatsapp:  { icon: "☎️", color: "text-green-400",  label: "WhatsApp" },
+  instagram: { icon: "📷", color: "text-pink-400",   label: "Instagram" },
+  default:   { icon: "👤", color: "text-gray-400",   label: "Manual" },
+};
+
+function cardTimeAgo(dateStr) {
+  if (!dateStr) return null;
+  const secs = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (secs < 60)    return "now";
+  if (secs < 3600)  return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
+
 function LeadCard({ lead, isOverlay = false }) {
+  const src   = SOURCE_META[lead.source] ?? SOURCE_META.default;
+  const phone = lead.phone ? `+${lead.phone}` : null;
+  const lastMsg      = lead.last_message?.substring(0, 55);
+  const showEllipsis = (lead.last_message?.length ?? 0) > 55;
+  const activityTime = cardTimeAgo(lead.last_message_at ?? lead.updated_at);
+
   return (
     <div
-      className={`glass p-3 rounded-xl select-none transition-all
+      className={`glass p-3 rounded-xl select-none transition-all space-y-1.5
         ${isOverlay
           ? "shadow-2xl ring-1 ring-white/20 rotate-1 scale-105 cursor-grabbing"
           : "cursor-grab hover:bg-white/10 active:cursor-grabbing"
         }`}
     >
-      <p className="text-sm font-medium text-white truncate">{lead.name}</p>
-      <p className="text-xs text-gray-400 truncate">{lead.company}</p>
-      {Number(lead.deal_value) > 0 && (
-        <p className="text-xs text-brand-400 mt-1 font-semibold">
-          ${Number(lead.deal_value).toLocaleString()}
+      {/* Name + source icon */}
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-sm font-medium text-white truncate flex-1">{lead.name}</p>
+        <span className={`text-base leading-none flex-shrink-0 ${src.color}`} title={src.label}>
+          {src.icon}
+        </span>
+      </div>
+
+      {/* Phone or company */}
+      {(phone || lead.company) && (
+        <p className="text-xs text-gray-400 truncate">
+          {phone ?? lead.company}
         </p>
       )}
+
+      {/* Last message preview */}
+      {lastMsg && (
+        <p className="text-xs text-gray-500 leading-snug line-clamp-2">
+          {lastMsg}{showEllipsis ? "…" : ""}
+        </p>
+      )}
+
+      {/* Footer: deal value + last activity */}
+      <div className="flex items-center justify-between gap-1 pt-0.5">
+        {Number(lead.deal_value) > 0 ? (
+          <span className="text-xs text-brand-400 font-semibold">
+            ${Number(lead.deal_value).toLocaleString()}
+          </span>
+        ) : <span />}
+        {activityTime && (
+          <span className="text-[10px] text-gray-600">{activityTime}</span>
+        )}
+      </div>
     </div>
   );
 }

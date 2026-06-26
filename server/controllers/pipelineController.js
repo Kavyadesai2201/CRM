@@ -1,6 +1,7 @@
 ﻿// /server/controllers/pipelineController.js
 import pool from "../db/pool.js";
 import bus  from "../events.js";
+import { createNotification } from "../services/notificationService.js";
 
 const STAGES = ["new","contacted","qualified","proposal","negotiation","closed_won","closed_lost"];
 
@@ -34,6 +35,12 @@ export const moveLeadToStage = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: "Lead not found" });
     bus.emit('event', { type: 'stage', payload: { lead_id: req.params.leadId, stage } });
+    const stageLabel = stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    createNotification({
+      type:    'stage_change',
+      message: `${rows[0].name} moved to ${stageLabel}`,
+      leadId:  rows[0].id,
+    });
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };

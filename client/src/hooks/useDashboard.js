@@ -15,8 +15,7 @@ export const useRecentMessages = (params = {}) => {
   return useQuery({
     queryKey: ["messages", "recent"],
     queryFn: () => messagesApi.getRecent(params),
-    refetchInterval: 60000, // SSE is the primary path; poll is a fallback
-    staleTime: 10000,
+    staleTime: Infinity, // SSE pushes updates; no polling needed
     retry: 2,
     select: (data) => data,
   });
